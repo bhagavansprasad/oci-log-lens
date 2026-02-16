@@ -115,3 +115,55 @@ RAW LOG:
 
 Return only the normalized JSON object. No explanation. No markdown. No code fences.
 """
+
+# ── EMBEDDING FIELDS ──────────────────────────────────────────────────────────
+# Fields selected from the normalized log to build the embedding text.
+# Only semantically meaningful fields are included.
+# Update these globals to change what gets embedded — no need to touch the function.
+
+EMBEDDING_FIELDS = [
+    ("flow",  "code"),
+    ("flow",  "trigger_type"),
+    ("error", "code"),
+    ("error", "summary"),
+    ("error", "endpoint_name"),
+    ("error", "endpoint_type"),
+]
+
+EMBEDDING_NESTED_FIELDS = [
+    ("error", "message_parsed", "root_cause"),
+    ("error", "message_parsed", "error_description"),
+]
+
+def get_embedding_text(normalized_log: dict) -> str:
+    """
+    Builds a single concatenated text string from selected fields
+    of the normalized log for use in embedding generation.
+
+    Args:
+        normalized_log: Normalized log dict (output of normalize_log).
+
+    Returns:
+        A clean concatenated string of the selected fields.
+    """
+    parts = []
+
+    for parent, field in EMBEDDING_FIELDS:
+        value = normalized_log.get(parent, {})
+        if isinstance(value, dict):
+            val = value.get(field)
+        else:
+            val = None
+        if val:
+            parts.append(str(val))
+
+    for parent, child, field in EMBEDDING_NESTED_FIELDS:
+        val = normalized_log.get(parent, {})
+        if isinstance(val, dict):
+            val = val.get(child, {})
+        if isinstance(val, dict):
+            val = val.get(field)
+        if val:
+            parts.append(str(val))
+
+    return " ".join(parts)

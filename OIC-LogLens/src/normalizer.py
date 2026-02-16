@@ -11,15 +11,7 @@ import logging
 from google import genai
 from prompts import get_normalization_prompt
 
-logging.basicConfig(
-    level=logging.INFO,
-    format="%(asctime)s [%(levelname)s] %(message)s"
-)
-logger = logging.getLogger(__name__)
-
-MODEL = "gemini-2.0-flash"
-
-client = genai.Client()
+from config import client, logger, GENERATION_MODEL
 
 def normalize_log(raw_log: list | str) -> dict:
     """
@@ -45,10 +37,10 @@ def normalize_log(raw_log: list | str) -> dict:
 
     prompt = get_normalization_prompt(raw_log_str)
 
-    logger.info(f"Sending log to Gemini ({MODEL}) for normalization ...")
+    logger.info(f"Sending log to Gemini ({GENERATION_MODEL}) for normalization ...")
 
     response = client.models.generate_content(
-        model=MODEL,
+        model=GENERATION_MODEL,
         contents=prompt
     )
 
