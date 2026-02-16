@@ -202,8 +202,7 @@ docker exec -it oracle26ai_db_bhagavan sqlplus system/Abcd1234@FREEPDB1
 docker exec -it oracle26ai_db_bhagavan sqlplus EA_APP/jnjnuh@FREEPDB1
 SHOW USER;
 SELECT table_name FROM user_tables;
-# Step 1 — Copy the file into the container
-docker cp oll_schema.sql oracle26ai_db_bhagavan:/tmp/oll_schema.sql
 
-# Step 2 — Run it from inside the container
+# Copy sql file to Docker container and create table
+docker cp oll_schema.sql oracle26ai_db_bhagavan:/tmp/oll_schema.sql
 docker exec -it oracle26ai_db_bhagavan sqlplus EA_APP/jnjnuh@FREEPDB1 @/tmp/oll_schema.sql
