@@ -1,4 +1,4 @@
-@startuml Log Deduplication - Sequence Diagrams
+@startuml Log_Dedup_Usecase1
 
 !theme plain
 skinparam backgroundColor #FFFFFF
@@ -41,12 +41,12 @@ skinparam sequence {
 
 title <b>Use Case 1 — Data Ingestion (Write Path)</b>
 
-actor       "User"      as USER
-participant "REST\n(FastAPI)" as REST
-participant "LLM\n(Gemini)"  as LLM
+actor       "User"               as USER
+participant "REST\n(FastAPI)"    as REST
+participant "LLM\n(Gemini)"      as LLM
 database    "VectorDB\n(Oracle 26ai)" as VDB
 
-USER  -> REST : 1. Submit Raw Log\n (JSON)
+USER  -> REST : 1. Submit Raw Log (JSON)
 activate REST
 
 REST  -> LLM  : 2. Send Raw Log for Normalization
@@ -73,10 +73,11 @@ deactivate VDB
 
 REST --> USER : 8. Confirm Success
 deactivate REST
+
 @enduml
 
 
-@startuml Log Deduplication - Sequence Diagrams
+@startuml Log_Dedup_Usecase2
 
 !theme plain
 skinparam backgroundColor #FFFFFF
@@ -111,8 +112,12 @@ skinparam sequence {
     GroupFontStyle bold
     NoteBackgroundColor #FFF9C4
     NoteBorderColor #F9A825
+    BoxBackgroundColor #E8F8F5
+    BoxBorderColor #1ABC9C
+    BoxFontColor #1A5276
+    BoxFontStyle bold
+    BoxFontSize 14
 }
-
 
 ' ============================================================
 '  PIPELINE 2 — SEARCH / DEDUPLICATION
@@ -120,12 +125,15 @@ skinparam sequence {
 
 title <b>Use Case 2 — Search / Deduplication Check (Read Path)</b>
 
-actor       "User"      as USER
-participant "REST\n(FastAPI)" as REST
-participant "LLM\n(Gemini)"  as LLM
-database    "VectorDB\n(Oracle 26ai)" as VDB
+actor       "User"               as USER
+participant "REST\n(FastAPI)"    as REST
 
-USER  -> REST : 1. Submit New Log (Search Request)
+box "RAG — Retrieval Augmented Generation" #E8F8F5
+    participant "LLM\n(Gemini)"           as LLM
+    database    "VectorDB\n(Oracle 26ai)" as VDB
+end box
+
+USER  -> REST : 1. Submit New Log\n(Search Request)
 activate REST
 
 REST  -> LLM  : 2. Send Raw Log for Normalization
@@ -138,35 +146,35 @@ activate LLM
 LLM  --> REST : 5. Return Vector Embeddings
 deactivate LLM
 
-box RAG — Retrieval Augmented Generation #E8F8F5
-    REST  -> VDB  : 6. Vector Similarity Search (Top-N)
-    activate VDB
+note over LLM, VDB #E8F8F5
+  <b>RAG Pipeline: Retrieve → Augment → Generate</b>
+end note
 
-    note right of VDB
-    Searches stored embeddings
-    and returns Top-N
-    most similar records
-    end note
+REST  -> VDB  : 6. Vector Similarity Search (Top-N)
+activate VDB
+note right of VDB
+  <b>Retrieve:</b>
+  Search stored embeddings
+  Returns Top-N similar logs
+end note
+VDB  --> REST : 7. Return Top-N Similar Logs
+deactivate VDB
 
-    VDB  --> REST : 7. Return Top-N Similar Logs
-    deactivate VDB
+REST  -> LLM  : 8. Prompt + Normalized Log + Top-N Results
+activate LLM
+note right of LLM
+  <b>Augment + Generate:</b>
+  LLM re-ranks using
+  retrieved context and
+  determines:
+  • Similarity score
+  • Best match
+  • Duplicate or not
+end note
+LLM  --> REST : 9. Similarity Scores + Jira IDs + Match Status
+deactivate LLM
 
-    REST  -> LLM  : 8. Send Prompt + Normalized Log + Top-N Results
-    activate LLM
-
-    note right of LLM
-    LLM re-ranks results and
-    determines:
-    • Similarity score
-    • Best match
-    • Duplicate or not
-    end note
-
-    LLM  --> REST : 9. Return Similar Items + Similarity Scores + Jira IDs
-    deactivate LLM
-end box    
-REST --> USER : 10. Return Final Results\n(Jira IDs + Similarity Score + Match)
+REST --> USER : 10. Final Results\n(Jira IDs +\n Similarity Score +\n Match)
 deactivate REST
 
 @enduml
-

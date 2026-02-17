@@ -1,0 +1,72 @@
+@startuml usecase1-architecture
+left to right direction
+
+skinparam backgroundColor #FFFFFF
+skinparam defaultFontName Arial
+skinparam defaultFontSize 12
+skinparam roundcorner 10
+skinparam arrowThickness 1.5
+skinparam arrowColor #555555
+skinparam arrowFontSize 11
+skinparam arrowFontColor #333333
+
+skinparam actor {
+    BackgroundColor #FFFFFF
+    BorderColor #888888
+    FontSize 12
+}
+
+skinparam component {
+    BackgroundColor #EAF3FB
+    BorderColor #2E75B6
+    FontColor #1A1A1A
+    FontSize 13
+    FontStyle bold
+    RoundCorner 8
+}
+
+skinparam database {
+    BackgroundColor #E8F5E9
+    BorderColor #388E3C
+    FontColor #1A1A1A
+    FontSize 13
+    FontStyle bold
+}
+
+skinparam note {
+    BackgroundColor #FFF8E1
+    BorderColor #FFC107
+    FontSize 10
+}
+
+title \n<size:16><b>OIC-LogLens — Use Case 1: Data Ingestion</b></size>\n
+
+actor "User" as USER
+
+component "REST API\n<size:10>(FastAPI)</size>" as REST
+component "Gemini AI\n<size:10>LLM + Embedding</size>" as GEMINI #EDE7F6
+database  "Oracle 26ai\n<size:10>OLL_LOGS</size>" as DB
+
+USER  ->  REST   : 1. Raw log (JSON)
+REST  ->  GEMINI : 2. Normalize
+GEMINI -> REST   : 3. Normalized JSON
+REST  ->  GEMINI : 4. Generate embedding
+GEMINI -> REST   : 5. Vector (3072 dims)
+REST  ->  DB     : 6. Store log + vector
+DB    ->  REST   : 7. LOG_ID
+REST  ->  USER   : 8. Success
+
+note top of GEMINI
+  <b>gemini-2.0-flash</b>
+  Normalize log structure
+
+  <b>gemini-embedding-001</b>
+  Generate 3072-dim vector
+end note
+
+note bottom of DB
+  raw_json · normalized_json
+  vector · log_hash · jira_id
+end note
+
+@enduml
