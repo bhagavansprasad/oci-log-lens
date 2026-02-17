@@ -25,6 +25,7 @@ END;
 
 CREATE TABLE OLL_LOGS (
     LOG_ID            VARCHAR2(100)    PRIMARY KEY,
+    LOG_HASH          VARCHAR2(64)     NOT NULL,
     JIRA_ID           VARCHAR2(100),
     LOG_TYPE          VARCHAR2(20),
     EVENT_TIME        TIMESTAMP,
@@ -32,12 +33,14 @@ CREATE TABLE OLL_LOGS (
     TRIGGER_TYPE      VARCHAR2(50),
     ENDPOINT_NAME     VARCHAR2(200),
     ERROR_CODE        VARCHAR2(100),
-    ERROR_SUMMARY     VARCHAR2(500),
+    ERROR_SUMMARY     CLOB,
     SEMANTIC_TEXT     CLOB,
     RAW_JSON          CLOB,
     NORMALIZED_JSON   CLOB,
     VECTOR            VECTOR(3072, FLOAT32)
 );
+
+ALTER TABLE OLL_LOGS ADD CONSTRAINT OLL_LOGS_HASH_UQ UNIQUE (LOG_HASH);
 
 -- ── Column Comments ───────────────────────────────────────────
 
@@ -46,6 +49,10 @@ COMMENT ON TABLE OLL_LOGS IS
 
 COMMENT ON COLUMN OLL_LOGS.LOG_ID IS
     'Primary key. UUID generated at insert time. Uniquely identifies each ingested log record.';
+
+-- Add with other comments:
+COMMENT ON COLUMN OLL_LOGS.LOG_HASH IS
+    'SHA256 hash of the raw log JSON. Used to prevent duplicate log ingestion. Same raw log will always produce the same hash.';
 
 COMMENT ON COLUMN OLL_LOGS.JIRA_ID IS
     'Associated Jira issue ID for this log. Used as the deduplication reference returned during similarity search.';
@@ -84,7 +91,6 @@ COMMENT ON COLUMN OLL_LOGS.VECTOR IS
     'Vector embedding (3072 dimensions, FLOAT32) generated from SEMANTIC_TEXT using Gemini text-embedding-004. Used for cosine similarity search.';
 
 -- ── Vector Index (HNSW Cosine) ───────────────────────────────
-
 CREATE VECTOR INDEX OLL_LOGS_VIDX
 ON OLL_LOGS(VECTOR)
 ORGANIZATION INMEMORY GRAPH

@@ -9,6 +9,7 @@ raw logs, embeddings, and Jira IDs into the OLL_LOGS table.
 import json
 import uuid
 import array
+import hashlib
 import oracledb
 from datetime import datetime
 from config import logger
@@ -25,6 +26,7 @@ DB_DSN      = "localhost/FREEPDB1"
 INSERT_LOG_SQL = """
 INSERT INTO OLL_LOGS (
     LOG_ID,
+    LOG_HASH,
     JIRA_ID,
     LOG_TYPE,
     EVENT_TIME,
@@ -39,6 +41,7 @@ INSERT INTO OLL_LOGS (
     VECTOR
 ) VALUES (
     :log_id,
+    :log_hash,
     :jira_id,
     :log_type,
     :event_time,
@@ -128,8 +131,12 @@ def _build_record(
     error = normalized_log.get("error") or {}
     msg   = error.get("message_parsed") or {}
 
+    raw_json_str = json.dumps(raw_log, sort_keys=True)
+    log_hash     = hashlib.sha256(raw_json_str.encode()).hexdigest()
+
     return {
         "log_id":          str(uuid.uuid4()),
+        "log_hash":        log_hash,
         "jira_id":         jira_id,
         "log_type":        normalized_log.get("log_type"),
         "event_time":      _parse_event_time(flow.get("timestamp")),
