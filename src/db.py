@@ -197,6 +197,42 @@ def insert_log(
         conn.close()
 
 
+
+# ── DUPLICATE CHECK SQL ────────────────────────────────────────────────────────
+
+CHECK_DUPLICATE_SQL = """
+SELECT COUNT(*) FROM OLL_LOGS WHERE LOG_HASH = :log_hash
+"""
+
+
+# ── DUPLICATE CHECK ────────────────────────────────────────────────────────────
+
+def check_duplicate(log_hash: str) -> bool:
+    """
+    Check if a log with the given hash already exists in OLL_LOGS.
+    
+    Args:
+        log_hash: SHA256 hash of the raw log
+        
+    Returns:
+        True if duplicate exists, False otherwise
+    """
+    conn   = get_connection()
+    cursor = conn.cursor()
+    
+    try:
+        cursor.execute(CHECK_DUPLICATE_SQL, {"log_hash": log_hash})
+        count = cursor.fetchone()[0]
+        return count > 0
+    
+    except Exception as e:
+        logger.error(f"Duplicate check failed: {e}")
+        raise
+    
+    finally:
+        cursor.close()
+        conn.close()
+
 # ── SEARCH SQL ─────────────────────────────────────────────────────────────────
 
 SEARCH_SIMILAR_SQL = """
