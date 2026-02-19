@@ -283,8 +283,6 @@ Root Cause: {query_log.get('error', {}).get('message_parsed', {}).get('root_caus
     for i, candidate in enumerate(candidates, 1):
         norm_data = candidate.get('normalized_json', {})
         
-        logger.info(f"Candidate {i}: norm_data type = {type(norm_data)}")
-        
         # If still a string, parse it
         if isinstance(norm_data, str):
             try:
@@ -296,15 +294,8 @@ Root Cause: {query_log.get('error', {}).get('message_parsed', {}).get('root_caus
         
         flow_info = norm_data.get('flow', {})
         error_info = norm_data.get('error', {})
-        
-        logger.info(f"Candidate {i}: norm_data keys = {list(norm_data.keys())}")
-        logger.info(f"Candidate {i}: error_info keys = {list(error_info.keys())}")
-        
         message_parsed = error_info.get('message_parsed', {})
-        logger.info(f"Candidate {i}: message_parsed = {message_parsed}")
-        
         root_cause = message_parsed.get('root_cause', 'N/A')
-        logger.info(f"Candidate {i}: root_cause = {root_cause}")
         
         candidates_text += f"""
 Candidate {i}:

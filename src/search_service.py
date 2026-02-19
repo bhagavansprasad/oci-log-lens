@@ -38,14 +38,8 @@ def rerank_with_llm(normalized_log: Dict[str, Any], candidates: List[Dict[str, A
         # Get re-ranking prompt with schema
         system_prompt, user_prompt, response_schema = get_rerank_prompt(normalized_log, candidates)
         
-        logger.info("=" * 80)
-        logger.info("RE-RANKING PROMPT:")
-        logger.info(f"System prompt (first 300 chars): {system_prompt[:300]}")
-        logger.info(f"User prompt (first 1000 chars): {user_prompt[:1000]}")
-        logger.info("=" * 80)
-        
         # Call Gemini with structured output
-        logger.info("Calling Gemini for re-ranking with structured output...")
+        logger.info("Calling Gemini for re-ranking...")
         response = client.models.generate_content(
             model=GENERATION_MODEL,
             contents=[system_prompt, user_prompt],
@@ -57,11 +51,9 @@ def rerank_with_llm(normalized_log: Dict[str, Any], candidates: List[Dict[str, A
         
         # Parse structured response
         reranked_text = response.text.strip()
-        logger.info(f"LLM re-ranking raw response (first 500 chars): {reranked_text[:500]}")
-        
         response_data = json.loads(reranked_text)
         reranked_results = response_data.get("results", [])
-        logger.info(f"Parsed {len(reranked_results)} re-ranked results from structured output")
+        logger.info(f"Re-ranking complete: {len(reranked_results)} results classified")
         
         # Merge re-ranking data with original candidates
         # Create lookup by both full URL and short ticket ID
@@ -74,12 +66,9 @@ def rerank_with_llm(normalized_log: Dict[str, Any], candidates: List[Dict[str, A
                 short_id = full_url.split("/")[-1]
                 jira_to_candidate[short_id] = c
         
-        logger.info(f"Merging results. Candidates: {[c.get('jira_id') for c in candidates]}")
-        
         enhanced_results = []
         for result in reranked_results:
             jira_id = result.get("jira_id")
-            logger.info(f"Processing re-ranked result: {jira_id}")
             if jira_id in jira_to_candidate:
                 candidate = jira_to_candidate[jira_id].copy()
                 candidate.update({
@@ -88,21 +77,14 @@ def rerank_with_llm(normalized_log: Dict[str, Any], candidates: List[Dict[str, A
                     "confidence": result.get("confidence"),
                     "reasoning": result.get("reasoning")
                 })
-                logger.info(f"Enhanced result: Jira={jira_id}, Classification={result.get('classification')}")
                 enhanced_results.append(candidate)
             else:
-                logger.warning(f"Jira ID {jira_id} from LLM not found in candidates!")
+                logger.warning(f"Jira ID {jira_id} from LLM not found in candidates")
         
         # Sort by rank
         enhanced_results.sort(key=lambda x: x.get("rank", 999))
         
-        logger.info("=" * 80)
-        logger.info(f"RE-RANKING COMPLETE")
-        logger.info(f"Total enhanced results: {len(enhanced_results)}")
-        for i, r in enumerate(enhanced_results[:3], 1):
-            logger.info(f"  Result {i}: {r.get('jira_id')} - {r.get('classification')} ({r.get('confidence')}%)")
-        logger.info("=" * 80)
-        
+        logger.info(f"Re-ranking complete: {len(enhanced_results)} results enhanced")
         return enhanced_results
     
     except Exception as e:
@@ -148,8 +130,6 @@ def search_log(raw_log: List[Dict[str, Any]], top_n: int = 5) -> List[Dict[str, 
         
         # ── Step 4: Format results ─────────────────────────────────────────────
         logger.info(f"Vector search returned {len(results)} results")
-        if results:
-            logger.info(f"Sample result: {results[0]}")
         
         matches = []
         for result in results:
