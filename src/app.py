@@ -70,7 +70,7 @@ st.markdown('<div class="sub-header">AI-Powered Error Resolution Engine for Orac
 
 # Sidebar
 with st.sidebar:
-    st.image("https://via.placeholder.com/200x80/1F4E79/FFFFFF?text=OIC-LogLens", use_container_width=True)
+    st.image("https://via.placeholder.com/200x80/1F4E79/FFFFFF?text=OIC-LogLens", width="stretch")
     st.markdown("---")
     
     page = st.radio(
@@ -514,13 +514,13 @@ elif page == "📊 Dashboard":
     col1, col2, col3 = st.columns(3)
     
     with col1:
-        if st.button("📖 API Documentation", use_container_width=True):
+        if st.button("📖 API Documentation", width="stretch"):
             st.markdown("[Open API Docs](http://localhost:8000/docs)")
     
     with col2:
-        if st.button("🧪 Testing Guide", use_container_width=True):
+        if st.button("🧪 Testing Guide", width="stretch"):
             st.markdown("[View TESTING.md](TESTING.md)")
     
     with col3:
-        if st.button("💻 GitHub Repository", use_container_width=True):
+        if st.button("💻 GitHub Repository", width="stretch"):
             st.markdown("[View on GitHub](https://github.com/bhagavansprasad/oic-log-lens)")
