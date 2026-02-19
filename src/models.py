@@ -145,3 +145,28 @@ class IngestDatabaseRequest(BaseModel):
                 "query": "SELECT log_json FROM logs WHERE id = 123"
             }
         }
+
+
+
+class BatchIngestResponse(BaseModel):
+    """Response model for batch ingestion"""
+    status: str = Field(..., description="success or partial_success or error")
+    message: str = Field(..., description="Human readable message")
+    total_logs: int = Field(..., description="Total logs attempted")
+    successful: int = Field(..., description="Successfully ingested logs")
+    failed: int = Field(..., description="Failed logs")
+    duplicates: int = Field(..., description="Duplicate logs")
+    results: list[IngestResponse] = Field(default_factory=list, description="Individual results")
+
+    class Config:
+        json_schema_extra = {
+            "example": {
+                "status": "success",
+                "message": "Batch ingestion completed",
+                "total_logs": 5,
+                "successful": 4,
+                "failed": 0,
+                "duplicates": 1,
+                "results": []
+            }
+        }

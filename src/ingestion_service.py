@@ -161,16 +161,17 @@ def load_from_raw_text(log_content: str) -> List[Dict[str, Any]]:
     return raw_log
 
 
-def load_from_database(connection_string: str, query: str) -> List[Dict[str, Any]]:
+def load_from_database(connection_string: str, query: str) -> List[List[Dict[str, Any]]]:
     """
-    Load raw log from a database query.
+    Load raw logs from a database query.
+    Supports batch ingestion - returns multiple logs if query returns multiple rows.
     
     Args:
         connection_string: Database connection string
-        query: SQL query to fetch log
+        query: SQL query to fetch logs (can return multiple rows)
         
     Returns:
-        Raw log as a list of dicts
+        List of raw logs (each log is a list of dicts)
         
     Raises:
         HTTPException: If connection fails or invalid result
@@ -192,39 +193,50 @@ def load_from_database(connection_string: str, query: str) -> List[Dict[str, Any
     try:
         logger.info(f"Executing query: {query[:100]}...")
         cursor.execute(query)
-        result = cursor.fetchone()
+        results = cursor.fetchall()  # Fetch ALL rows
         
-        if not result:
+        if not results:
             logger.error("Query returned no results")
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail="Query returned no results"
             )
         
-        # Assume first column contains JSON
-        log_json = result[0]
+        logger.info(f"Query returned {len(results)} row(s)")
         
-        # Handle CLOB
-        if hasattr(log_json, "read"):
-            log_json = log_json.read()
+        raw_logs = []
         
-        raw_log = json.loads(log_json)
+        for row in results:
+            # Assume first column contains JSON
+            log_json = row[0]
+            
+            # Handle CLOB
+            if hasattr(log_json, "read"):
+                log_json = log_json.read()
+            
+            try:
+                raw_log = json.loads(log_json)
+                
+                if not isinstance(raw_log, list):
+                    logger.warning(f"Skipping row - not a JSON array")
+                    continue
+                
+                raw_logs.append(raw_log)
+            
+            except json.JSONDecodeError as e:
+                logger.warning(f"Skipping row - invalid JSON: {e}")
+                continue
         
-        if not isinstance(raw_log, list):
-            logger.error("Query result must be a JSON array")
+        if not raw_logs:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Query result must be a JSON array"
+                detail="No valid logs found in query results"
             )
         
-        return raw_log
+        return raw_logs
     
-    except json.JSONDecodeError as e:
-        logger.error(f"Invalid JSON from database: {e}")
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"Invalid JSON from database: {str(e)}"
-        )
+    except HTTPException:
+        raise
     
     except Exception as e:
         logger.error(f"Database query failed: {e}")

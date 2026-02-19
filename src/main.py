@@ -8,22 +8,11 @@ Provides endpoints for log ingestion and deduplication search.
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from models import (
-    IngestFileRequest,
-    IngestURLRequest,
-    IngestRawRequest, 
-    IngestDatabaseRequest,
-    IngestResponse,
-    SearchRequest,
-    SearchResponse,
-    )
-from ingestion_service import (
-    load_from_file,
-    load_from_url,
-    load_from_raw_text,
-    load_from_database,
-    ingest_log,
-    )
+from models import (IngestFileRequest, IngestURLRequest, IngestRawRequest, 
+                     IngestDatabaseRequest, IngestResponse, BatchIngestResponse,
+                     SearchRequest, SearchResponse)
+from ingestion_service import (load_from_file, load_from_url, load_from_raw_text, 
+                                     load_from_database, ingest_log)
 from search_service import search_log
 from config import logger
 
@@ -147,28 +136,88 @@ def ingest_raw(request: IngestRawRequest):
 
 @app.post(
     "/ingest/database",
-    response_model=IngestResponse,
+    response_model=BatchIngestResponse,
     tags=["Ingestion"],
-    summary="Ingest log from database"
+    summary="Ingest logs from database (supports batch)"
 )
 def ingest_database(request: IngestDatabaseRequest):
     """
-    Ingest an OIC log from a database query.
+    Ingest OIC logs from a database query.
     
-    Connects to the database, executes the query,
-    then runs the standard ingestion pipeline.
+    Supports batch ingestion - if query returns multiple rows,
+    all logs will be ingested and results returned.
+    
+    Returns summary with counts and individual results.
     """
-    # Load raw log from database
-    raw_log = load_from_database(request.connection_string, request.query)
+    from fastapi import HTTPException, status
     
-    # Run ingestion pipeline
-    log_id, jira_id = ingest_log(raw_log)
+    # Load raw logs from database (may return multiple)
+    raw_logs = load_from_database(request.connection_string, request.query)
     
-    return IngestResponse(
-        log_id=log_id,
-        jira_id=jira_id,
-        status="success",
-        message="Log ingested successfully"
+    # Process each log
+    results = []
+    successful = 0
+    failed = 0
+    duplicates = 0
+    
+    for i, raw_log in enumerate(raw_logs, 1):
+        try:
+            logger.info(f"Processing log {i}/{len(raw_logs)}")
+            log_id, jira_id = ingest_log(raw_log)
+            
+            results.append(IngestResponse(
+                log_id=log_id,
+                jira_id=jira_id,
+                status="success",
+                message=f"Log {i} ingested successfully"
+            ))
+            successful += 1
+        
+        except HTTPException as e:
+            if e.status_code == 409:
+                # Duplicate
+                duplicates += 1
+                results.append(IngestResponse(
+                    log_id="",
+                    jira_id="",
+                    status="duplicate",
+                    message=f"Log {i}: Duplicate detected"
+                ))
+            else:
+                # Other error
+                failed += 1
+                results.append(IngestResponse(
+                    log_id="",
+                    jira_id="",
+                    status="error",
+                    message=f"Log {i}: {e.detail}"
+                ))
+        
+        except Exception as e:
+            failed += 1
+            results.append(IngestResponse(
+                log_id="",
+                jira_id="",
+                status="error",
+                message=f"Log {i}: {str(e)}"
+            ))
+    
+    # Determine overall status
+    if successful == len(raw_logs):
+        overall_status = "success"
+    elif successful > 0:
+        overall_status = "partial_success"
+    else:
+        overall_status = "error"
+    
+    return BatchIngestResponse(
+        status=overall_status,
+        message=f"Processed {len(raw_logs)} log(s): {successful} successful, {duplicates} duplicates, {failed} failed",
+        total_logs=len(raw_logs),
+        successful=successful,
+        failed=failed,
+        duplicates=duplicates,
+        results=results
     )
 
 
