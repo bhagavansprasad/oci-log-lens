@@ -8,8 +8,9 @@ Provides endpoints for log ingestion and deduplication search.
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from models import IngestFileRequest, IngestResponse
-from ingestion_service import load_from_file, ingest_log
+from models import IngestFileRequest, IngestResponse, SearchRequest, SearchResponse
+from ingestion_service import load_from_file, load_from_raw_text, ingest_log
+from search_service import search_log
 from config import logger
 
 # ── FastAPI App ────────────────────────────────────────────────────────────────
@@ -74,6 +75,39 @@ def ingest_file(request: IngestFileRequest):
         message="Log ingested successfully"
     )
 
+
+
+# ── Search Endpoint ────────────────────────────────────────────────────────────
+
+@app.post(
+    "/search",
+    response_model=SearchResponse,
+    tags=["Search"],
+    summary="Search for duplicate/similar logs"
+)
+def search_duplicate(request: SearchRequest):
+    """
+    Search for duplicate or similar logs using semantic similarity.
+    
+    The pipeline:
+    1. Normalize query log using Gemini LLM
+    2. Generate embedding vector
+    3. Vector similarity search in Oracle 26ai
+    4. Return Top-5 most similar logs
+    
+    Returns matches with Jira IDs, similarity scores, and metadata.
+    """
+    # Load raw log from text
+    raw_log = load_from_raw_text(request.log_content)
+    
+    # Run search pipeline
+    matches = search_log(raw_log, top_n=5)
+    
+    return SearchResponse(
+        status="success",
+        message=f"Found {len(matches)} similar logs",
+        matches=matches
+    )
 
 # ── Run Server ─────────────────────────────────────────────────────────────────
 

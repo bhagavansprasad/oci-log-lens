@@ -68,7 +68,7 @@ for i in $(seq -w 1 8); do
   echo "Ingesting flow-logs/${i}_flow-log.json"
   curl -X POST http://localhost:8000/ingest/file \
     -H "Content-Type: application/json" \
-    -d "{\"file_path\": \"flow-logs/0${i}_flow-log.json\"}"
+    -d "{\"file_path\": \"flow-logs/${i}_flow-log.json\"}"
   echo ""
 done
 
