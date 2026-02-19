@@ -175,16 +175,27 @@ For each processed log, the system stores in **Oracle 26ai VectorDB**:
 3. **Raw Text** — Copy-paste JSON directly
 4. **Database Query** — Load from Oracle/other DB (supports batch)
 
-### 🔍 Semantic Search
-- **Vector similarity** using cosine distance
-- **Top-5 ranked results** with similarity scores
+### 🔍 Semantic Search with LLM Re-ranking
+- **Vector similarity** using cosine distance (initial Top-5)
+- **LLM re-ranking** — Gemini analyzes context and classifies results
+- **4 classification types:**
+  - 🟢 EXACT_DUPLICATE (90-100%) — Same issue, same fix
+  - 🟡 SIMILAR_ROOT_CAUSE (70-89%) — Same underlying problem
+  - 🟠 RELATED (50-69%) — May provide useful context
+  - ⚪ NOT_RELATED (0-49%) — Different issue
+- **Confidence scores (0-100)** — Trust the ranking
+- **Reasoning provided** — Understand why it's classified
 - **Jira ID linking** — instant access to past resolutions
-- **Metadata filtering** — flow code, error code, trigger type
+- **Root cause comparison** — Full normalized log context
 
-### 🤖 AI-Powered Normalization
-- **LLM-based** log normalization (Gemini 2.0 Flash)
-- Handles structural variability across OIC log formats
-- Extracts: flow info, error details, tracking variables, user data
+### 🤖 AI-Powered Intelligence
+- **LLM-based normalization** (Gemini 2.0 Flash)
+  - Handles structural variability across OIC log formats
+  - Extracts: flow info, error details, tracking variables, user data
+- **LLM re-ranking with structured output**
+  - Classifies duplicates with 100% confidence when exact match
+  - Provides reasoning for each classification
+  - Uses full normalized log context (including root cause)
 
 ### 📊 Batch Processing
 - Ingest multiple logs in one database query
@@ -206,7 +217,8 @@ For each processed log, the system stores in **Oracle 26ai VectorDB**:
 |---|---|---|
 | **Backend** | FastAPI | REST API server |
 | **UI** | Streamlit | Web interface |
-| **LLM** | Gemini 2.0 Flash | Log normalization |
+| **LLM** | Gemini 2.0 Flash | Log normalization + re-ranking |
+| **Structured Output** | JSON Schema | Type-safe LLM responses |
 | **Embeddings** | gemini-embedding-001 | 3072-dim vectors |
 | **Vector DB** | Oracle 26ai | Vector storage + search |
 | **Vector Index** | HNSW | 95% accuracy, cosine distance |
@@ -585,6 +597,44 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 **GitHub:** [@bhagavansprasad](https://github.com/bhagavansprasad)  
 **Repository:** [oic-log-lens](https://github.com/bhagavansprasad/oic-log-lens)
 
+
+---
+
+## 🧠 How LLM Re-ranking Works
+
+### The Problem with Pure Vector Search
+
+Vector similarity (cosine distance) is **mathematical**, not **semantic**:
+
+```
+Query: "404 Not Found error in RH_NAVAN flow"
+Result 1: 68% similar - "Table not found in SQL query" ❌
+Result 2: 67% similar - "404 Not Found error in RH_NAVAN flow" ✅
+```
+
+**Result 1 has higher similarity** (more overlapping words) but **Result 2 is the actual duplicate!**
+
+### The Solution: LLM Re-ranking
+
+After vector search returns Top-5, the LLM:
+
+1. **Receives full context** — normalized logs with root causes
+2. **Analyzes semantically** — understands error meaning, not just words
+3. **Classifies** — EXACT_DUPLICATE vs SIMILAR vs RELATED vs NOT_RELATED
+4. **Provides confidence** — 100% for exact matches, lower for uncertain
+5. **Explains reasoning** — "Same flow, same error, same root cause"
+
+### Result
+
+```
+Before: 5 results with % scores (user must investigate all)
+After:  🟢 EXACT_DUPLICATE (100%) ← Use this Jira, don't create new!
+        🟡 SIMILAR (75%) ← Check this solution first
+        ⚪ NOT_RELATED (30%) ← Ignore
+```
+
+**From 10 minutes of investigation → 1 minute decision**
+
 ---
 
 ## 🚀 What's Next?
@@ -599,12 +649,17 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 ---
 
-## 📝 TODO / Known Issues
+## 📝 TODO / Future Enhancements
 
-- [ ] **Sequence diagrams** — Add detailed RAG flow diagrams
+- [x] **LLM re-ranking** — ✅ Implemented with structured output and 100% confidence
+- [ ] **Docker deployment** — Production-ready containerization with .env config
 - [ ] **Data masking** — Implement PII masking (email IDs, user IDs, credentials)
+- [ ] **Sequence diagrams** — Add detailed RAG flow diagrams
+- [ ] **Performance optimization** — Add caching, connection pooling
+- [ ] **Monitoring dashboard** — Real-time stats, log history viewer
 - [ ] **Table naming** — Consider renaming `OLL_LOGS` to more descriptive name
-- [ ] **Similarity threshold** — Define automatic deduplication threshold
-- [ ] **LLM re-ranking** — Implement re-ranking after vector search
-- [ ] **Monitoring** — Add observability and performance metrics
 
+
+---
+
+**Built with ❤️ for the Oracle Integration Cloud community**
