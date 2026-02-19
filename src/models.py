@@ -56,3 +56,53 @@ class ErrorResponse(BaseModel):
                 "detail": "/path/to/log.json does not exist"
             }
         }
+
+
+
+# ── SEARCH MODELS ──────────────────────────────────────────────────────────────
+
+class SearchRequest(BaseModel):
+    """Request model for POST /search"""
+    log_content: str = Field(..., description="Raw log as JSON string (array format)")
+
+    class Config:
+        json_schema_extra = {
+            "example": {
+                "log_content": "[{...raw log json array...}]"
+            }
+        }
+
+
+class SearchMatch(BaseModel):
+    """Single search result match"""
+    jira_id: str = Field(..., description="Jira issue ID")
+    similarity_score: float = Field(..., description="Similarity percentage (0-100)")
+    flow_code: str = Field(..., description="OIC flow code")
+    trigger_type: Optional[str] = Field(None, description="Trigger type (rest/soap/scheduled)")
+    error_code: Optional[str] = Field(None, description="Error code")
+    error_summary: str = Field(..., description="Error summary (first 150 chars)")
+
+
+class SearchResponse(BaseModel):
+    """Response model for POST /search"""
+    status: str = Field(..., description="success or error")
+    message: str = Field(..., description="Human readable message")
+    matches: list[SearchMatch] = Field(..., description="List of similar logs (Top-N)")
+
+    class Config:
+        json_schema_extra = {
+            "example": {
+                "status": "success",
+                "message": "Found 5 similar logs",
+                "matches": [
+                    {
+                        "jira_id": "https://promptlyai.atlassian.net/browse/OLL-4FF0674A",
+                        "similarity_score": 100.0,
+                        "flow_code": "RH_NAVAN_DAILY_INTEGR_SCHEDU",
+                        "trigger_type": "scheduled",
+                        "error_code": "Execution failed",
+                        "error_summary": "oracle.cloud.connector.api.CloudInvocationException"
+                    }
+                ]
+            }
+        }
